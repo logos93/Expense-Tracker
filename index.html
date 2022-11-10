@@ -6,9 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Expense Tracker</title>
   </head>
+
   <body>
-    <header><h1>Expense Tracker</h1></header>
-    <form action="">
+    <header>
+      <h1>Expense Tracker</h1>
+    </header>
+    <form onsubmit="savetoServer(event)">
       <label for="amount">Amount:</label>
       <input type="text" name="amount" id="amount" required />
       <label for="amount">Description:</label>
@@ -18,6 +21,7 @@
       <button id="submit">Submit</button>
     </form>
     <ul id="users"></ul>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
       // variables
       const amount = document.querySelector("#amount");
@@ -27,58 +31,39 @@
       const userList = document.querySelector("#users");
 
       // function
+      function savetoServer(e) {
+        e.preventDefault();
+        const amount = e.target.amount.value;
+        const descript = e.target.descript.value;
+        const type = e.target.type.value;
 
-      const editItem = function (e) {
-        const descriptEdit = e.target.parentElement.firstChild.textContent
-          .split(" ")[1]
-          .slice(0, -1);
-        const tempObj = JSON.parse(localStorage.getItem(descriptEdit));
-        console.log(tempObj);
-        if (e.target.classList.contains("edit")) {
-          amount.value = tempObj.amount;
-          descript.value = tempObj.descript;
-          type.value = tempObj.type;
-
-          const li = e.target.parentElement;
-          li.style.display = "none";
-          userList.removeChild(li);
-          localStorage.removeItem(descriptEdit);
-        }
+        const obj = {
+          amount,
+          descript,
+          type,
+        };
+        // saving to our server
+        axios
+          .post(
+            "https://crudcrud.com/api/3c652292e55542dc95e1d54956ecb277/appointment",
+            obj
+          )
+          .then((res) => display(res.data))
+          .catch((err) => console.log(err));
+        clearInputField();
+      }
+      const clearInputField = function () {
+        amount.value = "";
+        descript.value = "";
+        type.value = "";
       };
 
-      const removeItem = function (e) {
-        const descriptDel = e.target.parentElement.firstChild.textContent
-          .split(" ")[1]
-          .slice(0, -1);
-        console.log(descriptDel);
-        if (e.target.classList.contains("delete")) {
-          if (confirm("Are you sure you want to delete this item")) {
-            const li = e.target.parentElement; // this will refer to parent
-            // of target here our target is X button and its parent is li element
-            li.style.display = "none";
-            userList.removeChild(li);
-            console.log(descriptDel);
-            localStorage.removeItem(descriptDel);
-          }
-        }
-      };
-
-      const displayExpense = function (descript) {
-        const tempObj = JSON.parse(localStorage.getItem(descript));
-        console.log(tempObj);
-
-        // creatig list element
+      function display(obj) {
+        console.log(obj, obj._id);
         const li = document.createElement("li");
-        // Add text node with input values
-        li.appendChild(document.createTextNode(`${tempObj.amount}`));
-        li.appendChild(document.createTextNode(`: ${tempObj.descript}`));
-        li.appendChild(document.createTextNode(`: ${tempObj.type}`));
-
-        // Add HTML
-        li.innerHTML = `${tempObj.amount}: ${tempObj.descript}: ${tempObj.type}`;
-
-        // ading classname to li
+        li.innerHTML = `<span>${obj.amount}</span>-<span>${obj.descript}</span>-<span>${obj.type}</span>`;
         li.className = "information";
+        li.id = obj._id;
 
         // creating delete button element
         const deleteBtn = document.createElement("button");
@@ -96,43 +81,94 @@
         // appending the edit button to li
         li.appendChild(editBtn);
 
-        // Append to ul
+        // appending li to userlist
         userList.appendChild(li);
         clearInputField();
-      };
+      }
 
-      const addExpense = function (e) {
-        e.preventDefault();
-        const expenseObj = {
-          amount: amount.value,
-          descript: descript.value,
-          type: type.value,
-        };
-        console.log(expenseObj);
-        localStorage.setItem(expenseObj.descript, JSON.stringify(expenseObj));
-        displayExpense(expenseObj.descript);
-      };
+      function displayFromServer() {
+        // for (const val of Object.values(obj)) {
+        //   console.log(val);
+        // }
+        axios
+          .get(
+            "https://crudcrud.com/api/3c652292e55542dc95e1d54956ecb277/appointment"
+          )
+          .then((res) => {
+            const array = res.data;
+            array.forEach((obj) => {
+              console.log(obj, obj._id);
+              const li = document.createElement("li");
+              li.innerHTML = `<span>${obj.amount}</span>-<span>${obj.descript}</span>-<span>${obj.type}</span>`;
+              li.className = "information";
+              li.id = obj._id;
 
-      const clearInputField = function () {
-        amount.value = "";
-        descript.value = "";
-        type.value = "";
-      };
+              // creating delete button element
+              const deleteBtn = document.createElement("button");
+              deleteBtn.className = "delete";
+              deleteBtn.appendChild(document.createTextNode("Delete"));
 
-      //   clearInputField();
+              // appending the delete button to li
+              li.appendChild(deleteBtn);
 
-      // function to display localstorage items
-      (function () {
-        console.log("hello");
-        for (const key of Object.keys(localStorage)) {
-          displayExpense(key);
+              // creating edit button element
+              const editBtn = document.createElement("button");
+              editBtn.className = "edit";
+              editBtn.appendChild(document.createTextNode("Edit"));
+
+              // appending the edit button to li
+              li.appendChild(editBtn);
+
+              // appending li to userlist
+              userList.appendChild(li);
+            });
+          })
+          .catch((err) => console.log(err));
+      }
+
+      function deleteUser(e) {
+        if (e.target.classList.contains("delete")) {
+          if (confirm("Are you sure you want to delete this item ?")) {
+            const li = e.target.parentElement;
+            li.style.display = "none";
+            userList.removeChild(li);
+            console.log(li, li.id);
+            axios
+              .delete(
+                `https://crudcrud.com/api/3c652292e55542dc95e1d54956ecb277/appointment/${li.id}`
+              )
+              .then(() => alert("user deleted"))
+              .catch((error) => console.log(error));
+          }
         }
-      })();
+      }
+
+      function editUser(e) {
+        if (e.target.classList.contains("edit")) {
+          if (confirm("Are you sure you want to edit this item ?")) {
+            const litoEdit = e.target.parentElement;
+            console.log(litoEdit);
+            amount.value = litoEdit.children[0].textContent;
+            descript.value = litoEdit.children[1].textContent;
+            type.value = litoEdit.children[2].textContent;
+
+            litoEdit.style.display = "none";
+            userList.removeChild(litoEdit);
+            console.log(litoEdit, litoEdit.id);
+            axios
+              .delete(
+                `https://crudcrud.com/api/3c652292e55542dc95e1d54956ecb277/appointment/${litoEdit.id}`
+              )
+              .then(() => alert("enter user details"))
+              .catch((error) => console.log(error));
+          }
+        }
+      }
 
       // event listeners
-      submitBtn.addEventListener("click", addExpense);
-      userList.addEventListener("click", removeItem);
-      userList.addEventListener("click", editItem);
+      window.addEventListener("DOMContentLoaded", displayFromServer);
+      userList.addEventListener("click", deleteUser);
+      userList.addEventListener("click", editUser);
     </script>
   </body>
 </html>
